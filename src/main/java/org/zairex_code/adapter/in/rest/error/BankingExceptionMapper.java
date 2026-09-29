@@ -16,30 +16,44 @@ import java.time.LocalDateTime;
 @Provider
 public class BankingExceptionMapper implements ExceptionMapper<BankingException> {
 
+    private static final int BAD_REQUEST = 400;
+    private static final int NOT_FOUND = 404;
+    private static final int CONFLICT = 409;
+    private static final int UNPROCESSABLE_ENTITY = 422;
+
     @Override
     public Response toResponse(BankingException exception) {
-        Response.Status status = resolveStatus(exception);
+        int status = resolveStatus(exception);
         ErrorResponse body = new ErrorResponse(
-                status.getStatusCode(),
-                status.getReasonPhrase(),
+                status,
+                reasonPhrase(status),
                 exception.getMessage(),
                 LocalDateTime.now());
         return Response.status(status).entity(body).type(MediaType.APPLICATION_JSON).build();
     }
 
-    private Response.Status resolveStatus(BankingException exception) {
+    private int resolveStatus(BankingException exception) {
         if (exception instanceof AccountNotFoundException) {
-            return Response.Status.NOT_FOUND;
+            return NOT_FOUND;
         }
         if (exception instanceof DuplicateAccountException) {
-            return Response.Status.CONFLICT;
+            return CONFLICT;
         }
         if (exception instanceof InvalidAmountException) {
-            return Response.Status.BAD_REQUEST;
+            return BAD_REQUEST;
         }
         if (exception instanceof InsufficientFundsException || exception instanceof TransferFailedException) {
-            return Response.Status.UNPROCESSABLE_ENTITY;
+            return UNPROCESSABLE_ENTITY;
         }
-        return Response.Status.BAD_REQUEST;
+        return BAD_REQUEST;
+    }
+
+    private String reasonPhrase(int status) {
+        return switch (status) {
+            case NOT_FOUND -> "Not Found";
+            case CONFLICT -> "Conflict";
+            case UNPROCESSABLE_ENTITY -> "Unprocessable Entity";
+            default -> "Bad Request";
+        };
     }
 }

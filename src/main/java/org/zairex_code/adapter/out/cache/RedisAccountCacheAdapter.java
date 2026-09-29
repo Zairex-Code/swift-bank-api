@@ -3,6 +3,7 @@ package org.zairex_code.adapter.out.cache;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vertx.mutiny.redis.client.Redis;
+import io.vertx.mutiny.redis.client.RedisAPI;
 import io.vertx.mutiny.redis.client.Response;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -22,16 +23,16 @@ public class RedisAccountCacheAdapter implements AccountCachePort {
     private static final Logger LOG = Logger.getLogger(RedisAccountCacheAdapter.class);
     private static final String KEY_PREFIX = "account:";
 
-    private final Redis redis;
+    private final RedisAPI redis;
     private final ObjectMapper objectMapper;
     private final long ttlSeconds;
 
     @Inject
-    public RedisAccountCacheAdapter(Redis redis,
+    public RedisAccountCacheAdapter(Redis redisClient,
                                     ObjectMapper objectMapper,
                                     @ConfigProperty(name = "app.cache.account-ttl-seconds", defaultValue = "60")
                                     long ttlSeconds) {
-        this.redis = redis;
+        this.redis = RedisAPI.api(redisClient);
         this.objectMapper = objectMapper;
         this.ttlSeconds = ttlSeconds;
     }

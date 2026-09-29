@@ -1,0 +1,72 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: swift-bank-mongo
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - ./seed:/seed:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  mongo-init:
+    image: mongo:7
+    container_name: swift-bank-mongo-init
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+    volumes:
+      - ./seed:/seed:ro
+    entrypoint:
+      - bash
+      - -c
+      - >
+        mongosh --host mongo:27017 --quiet --eval
+        'try { rs.status() } catch (e) { rs.initiate({_id:"rs0", members:[{_id:0, host:"mongo:27017"}]}) }';
+        until mongosh --host mongo:27017 --quiet --eval
+        'db.adminCommand({hello:1}).isWritablePrimary' | grep -q true;
+        do echo 'Waiting for MongoDB primary...'; sleep 2; done;
+        echo 'MongoDB replica set is ready.'
+
+  redis:
+    image: redis:7-alpine
+    container_name: swift-bank-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: swift-bank-api
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+    environment:
+      MONGO_CONNECTION_STRING: mongodb://mongo:27017/?replicaSet=rs0
+      MONGO_DATABASE: swift_bank
+      REDIS_HOSTS: redis://redis:6379
+      SEED_ENABLED: "true"
+      ACCOUNT_CACHE_TTL_SECONDS: "60"
+      QUARKUS_HTTP_PORT: "8080"
+    ports:
+      - "8080:8080"
+
+volumes:
+  mongo-data:

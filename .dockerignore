@@ -1,5 +1,10 @@
-*
-!target/*-runner
-!target/*-runner.jar
-!target/lib/*
-!target/quarkus-app/*
+# Build context exclusions for the multi-stage Dockerfile
+.git
+.gitignore
+.github
+.idea
+.vscode
+*.iml
+*.md
+target
+.env
